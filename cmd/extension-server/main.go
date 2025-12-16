@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc"
 
 	pb "github.com/envoyproxy/gateway/proto/extension"
+	"github.com/giantswarm/envoy-extension-server-app/internal/extensionserver"
 )
 
 func main() {

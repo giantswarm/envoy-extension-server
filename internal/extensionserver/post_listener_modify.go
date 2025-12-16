@@ -8,14 +8,10 @@ package extensionserver
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-	listenerv3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
-	bav3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/basic_auth/v3"
-	hcm "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
-	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
+	tlsv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	"google.golang.org/protobuf/types/known/anypb"
 
 	pb "github.com/envoyproxy/gateway/proto/extension"
@@ -30,109 +26,68 @@ import (
 // anything important.
 func (s *Server) PostHTTPListenerModify(ctx context.Context, req *pb.PostHTTPListenerModifyRequest) (*pb.PostHTTPListenerModifyResponse, error) {
 	s.log.Info("postHTTPListenerModify callback was invoked")
-	// Collect all of the required username/password combinations from the
-	// provided contexts that were attached to the gateway.
-	passwords := NewHtpasswd()
+	// Collect all CertificatePolicies from the extension resources attached to the gateway.
+	var policies []v1alpha1.CertificatePolicy
 	for _, ext := range req.PostListenerContext.ExtensionResources {
 		var certPolicy v1alpha1.CertificatePolicy
 		if err := json.Unmarshal(ext.GetUnstructuredBytes(), &certPolicy); err != nil {
 			s.log.Error("failed to unmarshal the extension", slog.String("error", err.Error()))
 			continue
 		}
-		s.log.Info("processing an extension context", slog.String("username", certPolicy.Spec.Username))
-		passwords.AddUser(certPolicy.Spec.Username, certPolicy.Spec.Password)
+		s.log.Info("processing an extension context", slog.String("secretName", certPolicy.Spec.SecretName))
+		policies = append(policies, certPolicy)
 	}
 
-	// First, get the filter chains from the listener
 	filterChains := req.Listener.GetFilterChains()
-	defaultFC := req.Listener.DefaultFilterChain
-	if defaultFC != nil {
-		filterChains = append(filterChains, defaultFC)
-	}
-	// Go over all of the chains, and add the basic authentication http filter
-	for _, currChain := range filterChains {
-		httpConManager, hcmIndex, err := findHCM(currChain)
-		if err != nil {
-			s.log.Error("failed to find an HCM in the current chain", slog.Any("error", err))
-			continue
-		}
-		// If a basic authentication filter already exists, update it. Otherwise, create it.
-		basicAuth, baIndex, err := findBasicAuthFilter(httpConManager.HttpFilters)
-		if err != nil {
-			s.log.Error("failed to unmarshal the existing basicAuth filter", slog.Any("error", err))
-			continue
-		}
-		if baIndex == -1 {
-			// Create a new basic auth filter
-			basicAuth = &bav3.BasicAuth{
-				Users: &corev3.DataSource{
-					Specifier: &corev3.DataSource_InlineString{
-						InlineString: passwords.String(),
-					},
-				},
-				ForwardUsernameHeader: "X-Example-Ext",
-			}
-		} else {
-			// Update the basic auth filter
-			basicAuth.Users.Specifier = &corev3.DataSource_InlineString{
-				InlineString: passwords.String(),
-			}
-		}
-		// Add or update the Basic Authentication filter in the HCM
-		anyBAFilter, _ := anypb.New(basicAuth)
-		if baIndex > -1 {
-			httpConManager.HttpFilters[baIndex].ConfigType = &hcm.HttpFilter_TypedConfig{
-				TypedConfig: anyBAFilter,
-			}
-		} else {
-			filters := []*hcm.HttpFilter{
-				{
-					Name: "envoy.filters.http.basic_auth",
-					ConfigType: &hcm.HttpFilter_TypedConfig{
-						TypedConfig: anyBAFilter,
-					},
-				},
-			}
-			filters = append(filters, httpConManager.HttpFilters...)
-			httpConManager.HttpFilters = filters
-		}
+	for _, filterChain := range filterChains {
+		transportSocket := filterChain.GetTransportSocket()
 
-		// Write the updated HCM back to the filter chain
-		anyConnectionMgr, _ := anypb.New(httpConManager)
-		currChain.Filters[hcmIndex].ConfigType = &listenerv3.Filter_TypedConfig{
-			TypedConfig: anyConnectionMgr,
+		s.log.Info("transport socket", "transportSocket", transportSocket)
+
+		if transportSocket != nil && transportSocket.GetTypedConfig() != nil {
+			// Unmarshal the typed config to DownstreamTlsContext
+			downstreamTlsContext := &tlsv3.DownstreamTlsContext{}
+			if err := transportSocket.GetTypedConfig().UnmarshalTo(downstreamTlsContext); err != nil {
+				s.log.Error("failed to unmarshal DownstreamTlsContext", "error", err)
+				continue
+			}
+
+			// Get or create CommonTlsContext
+			if downstreamTlsContext.CommonTlsContext == nil {
+				downstreamTlsContext.CommonTlsContext = &tlsv3.CommonTlsContext{}
+			}
+
+			// Initialize TlsCertificateSdsSecretConfigs if nil
+			if downstreamTlsContext.CommonTlsContext.TlsCertificateSdsSecretConfigs == nil {
+				downstreamTlsContext.CommonTlsContext.TlsCertificateSdsSecretConfigs = []*tlsv3.SdsSecretConfig{}
+			}
+
+			// Append SDS secret configs for each policy
+			for _, policy := range policies {
+				newSdsConfig := NewSdsSecretConfig(policy.Spec.SecretName)
+				downstreamTlsContext.CommonTlsContext.TlsCertificateSdsSecretConfigs = append(
+					downstreamTlsContext.CommonTlsContext.TlsCertificateSdsSecretConfigs,
+					newSdsConfig,
+				)
+			}
+
+			// Marshal the modified context back to Any
+			modifiedTypedConfig, err := anypb.New(downstreamTlsContext)
+			if err != nil {
+				s.log.Error("failed to marshal DownstreamTlsContext", "error", err)
+				continue
+			}
+
+			// Update the transport socket with the modified config
+			transportSocket.ConfigType = &corev3.TransportSocket_TypedConfig{
+				TypedConfig: modifiedTypedConfig,
+			}
+
+			s.log.Info("appended SDS secret configs to tls_certificate_sds_secret_configs", "count", len(policies))
 		}
 	}
 
 	return &pb.PostHTTPListenerModifyResponse{
 		Listener: req.Listener,
 	}, nil
-}
-
-// Tries to find an HTTP connection manager in the provided filter chain.
-func findHCM(filterChain *listenerv3.FilterChain) (*hcm.HttpConnectionManager, int, error) {
-	for filterIndex, filter := range filterChain.Filters {
-		if filter.Name == wellknown.HTTPConnectionManager {
-			hcm := new(hcm.HttpConnectionManager)
-			if err := filter.GetTypedConfig().UnmarshalTo(hcm); err != nil {
-				return nil, -1, err
-			}
-			return hcm, filterIndex, nil
-		}
-	}
-	return nil, -1, fmt.Errorf("unable to find HTTPConnectionManager in FilterChain: %s", filterChain.Name)
-}
-
-// Tries to find the Basic Authentication HTTP filter in the provided chain
-func findBasicAuthFilter(chain []*hcm.HttpFilter) (*bav3.BasicAuth, int, error) {
-	for i, filter := range chain {
-		if filter.Name == "envoy.filters.http.basic_auth" {
-			ba := new(bav3.BasicAuth)
-			if err := filter.GetTypedConfig().UnmarshalTo(ba); err != nil {
-				return nil, -1, err
-			}
-			return ba, i, nil
-		}
-	}
-	return nil, -1, nil
 }
