@@ -41,7 +41,7 @@ service:
   type: ClusterIP
   port: 5005
 
-resources: {}
+resources:
   limits:
     cpu: 100m
     memory: 128Mi
