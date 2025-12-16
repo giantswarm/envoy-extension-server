@@ -15,6 +15,7 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 
 	pb "github.com/envoyproxy/gateway/proto/extension"
+
 	"github.com/giantswarm/envoy-extension-server-app/api/v1alpha1"
 )
 
