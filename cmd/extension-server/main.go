@@ -8,10 +8,11 @@ import (
 	"syscall"
 
 	pb "github.com/envoyproxy/gateway/proto/extension"
-	"github.com/giantswarm/envoy-extension-server-app/api/v1alpha1"
-	"github.com/giantswarm/envoy-extension-server-app/internal/extensionserver"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
+
+	"github.com/giantswarm/envoy-extension-server-app/api/v1alpha1"
+	"github.com/giantswarm/envoy-extension-server-app/internal/extensionserver"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"

@@ -4,8 +4,9 @@ import (
 	"context"
 
 	pb "github.com/envoyproxy/gateway/proto/extension"
-	"github.com/giantswarm/envoy-extension-server-app/api/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/giantswarm/envoy-extension-server-app/api/v1alpha1"
 )
 
 func (s *Server) PostTranslateModify(ctx context.Context, req *pb.PostTranslateModifyRequest) (*pb.PostTranslateModifyResponse, error) {
