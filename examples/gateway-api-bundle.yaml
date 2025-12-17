@@ -38,8 +38,9 @@ data:
         userConfig:
           configMap:
             values: |
-              # gateways:
-              #   default:
+              gateways:
+                default:
+                  dnsName: ingress
               #     subdomains:
               #       - hello
 kind: ConfigMap
