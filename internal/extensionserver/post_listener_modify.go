@@ -19,11 +19,17 @@ import (
 // Listener xDS configuration and before that configuration is passed on to
 // Envoy Proxy.
 func (s *Server) PostHTTPListenerModify(ctx context.Context, req *pb.PostHTTPListenerModifyRequest) (*pb.PostHTTPListenerModifyResponse, error) {
-	s.log.Info("postHTTPListenerModify callback was invoked")
+	listenerName := req.Listener.GetName()
+	s.log.Info("postHTTPListenerModify callback was invoked", "listener", listenerName)
 
-	policies := s.extractCertificatePolicies(req.PostListenerContext.ExtensionResources)
+	filterChains := req.Listener.GetFilterChains()
+	if len(filterChains) == 0 {
+		s.log.Info("no filter chains found for listener", "listener", listenerName)
+	}
 
-	for _, filterChain := range req.Listener.GetFilterChains() {
+	policies := s.extractCertificatePolicies(req.PostListenerContext.GetExtensionResources())
+
+	for _, filterChain := range filterChains {
 		if err := s.applyPoliciesToFilterChain(filterChain, policies); err != nil {
 			s.log.Error("failed to apply policies to filter chain", "error", err)
 		}

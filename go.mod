@@ -3,11 +3,12 @@ module github.com/giantswarm/envoy-extension-server-app
 go 1.25.5
 
 require (
-	github.com/envoyproxy/gateway v1.3.1
+	github.com/envoyproxy/gateway v1.5.6
 	github.com/envoyproxy/go-control-plane/envoy v1.36.0
 	github.com/urfave/cli/v2 v2.27.7
 	google.golang.org/grpc v1.76.0
 	google.golang.org/protobuf v1.36.10
+	k8s.io/api v0.34.3
 	k8s.io/apimachinery v0.34.3
 	k8s.io/client-go v0.34.3
 	sigs.k8s.io/controller-runtime v0.22.4
@@ -74,7 +75,6 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/api v0.34.3 // indirect
 	k8s.io/apiextensions-apiserver v0.34.3 // indirect
 	k8s.io/code-generator v0.34.3 // indirect
 	k8s.io/gengo/v2 v2.0.0-20250820003526-c297c0c1eb9d // indirect

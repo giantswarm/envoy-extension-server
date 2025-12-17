@@ -1,0 +1,74 @@
+apiVersion: v1
+data:
+  values: |
+    clusterID: <CLUSTER_ID>
+    organization: <ORG>
+    apps:
+      gatewayApiCrds:
+        enabled: true
+      envoyGateway:
+        enabled: true
+        userConfig:
+          configMap:
+            values: |
+              config:
+                envoyGateway:
+                  extensionManager:
+                    # Envoy Gateway will watch these resource kinds and use them as extension policies
+                    # which can be attached to Gateway resources.
+                    policyResources:
+                    - group: gateway.giantswarm.io
+                      version: v1alpha1
+                      kind: CertificatePolicy
+                    hooks:
+                      # The type of hooks that should be invoked
+                      xdsTranslator:
+                        post:
+                        - HTTPListener
+                        - Translation
+                        translation:
+                          cluster:
+                            includeAll: false
+                          secret:
+                            includeAll: true
+                    service:
+                      # The service that is hosting the extension server
+                      fqdn:
+                        hostname: envoy-extension-server-app.envoy-gateway-system.svc.cluster.local
+                        port: 5005
+      gatewayApiConfig:
+        userConfig:
+          configMap:
+            values: |
+              gateways:
+                default:
+                  dnsName: ingress
+              #     subdomains:
+              #       - hello
+kind: ConfigMap
+metadata:
+  name: <CLUSTER_ID>-gateway-api-bundle-user-values
+  namespace: org-<ORG>
+
+---
+
+apiVersion: application.giantswarm.io/v1alpha1
+kind: App
+metadata:
+  labels:
+    app.kubernetes.io/name: gateway-api-bundle
+    app-operator.giantswarm.io/version: 0.0.0
+    giantswarm.io/cluster: <CLUSTER_ID>
+  name: <CLUSTER_ID>-gateway-api-bundle
+  namespace: org-<ORG>
+spec:
+  catalog: giantswarm
+  kubeConfig:
+    inCluster: true
+  name: gateway-api-bundle
+  namespace: org-<ORG>
+  userConfig:
+    configMap:
+      name: <CLUSTER_ID>-gateway-api-bundle-user-values
+      namespace: org-<ORG>
+  version: 1.5.0

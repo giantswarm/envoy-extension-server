@@ -28,14 +28,19 @@ podAnnotations: {}
 
 podSecurityContext:
   fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
 
 securityContext:
+  allowPrivilegeEscalation: false
   capabilities:
     drop:
     - ALL
   readOnlyRootFilesystem: true
   runAsNonRoot: true
   runAsUser: 65532
+  seccompProfile:
+    type: RuntimeDefault
 
 service:
   type: ClusterIP
