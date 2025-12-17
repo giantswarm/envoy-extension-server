@@ -3,7 +3,7 @@ module github.com/giantswarm/envoy-extension-server-app
 go 1.25.5
 
 require (
-	github.com/envoyproxy/gateway v1.3.1
+	github.com/envoyproxy/gateway v1.5.6
 	github.com/envoyproxy/go-control-plane/envoy v1.36.0
 	github.com/urfave/cli/v2 v2.27.7
 	google.golang.org/grpc v1.76.0
