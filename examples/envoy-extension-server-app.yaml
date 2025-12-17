@@ -6,7 +6,7 @@ metadata:
   name: <CLUSTER_ID>-envoy-extension-server-app
   namespace: org-<ORG>
 spec:
-  catalog: playground-test
+  catalog: giantswarm-playground-test
   config:
     configMap:
       name: <CLUSTER_ID>-cluster-values
