@@ -1,0 +1,26 @@
+apiVersion: application.giantswarm.io/v1alpha1
+kind: App
+metadata:
+  labels:
+    giantswarm.io/cluster: <CLUSTER_ID>
+  name: <CLUSTER_ID>-envoy-extension-server-app
+  namespace: org-<ORG>
+spec:
+  catalog: playground-test
+  config:
+    configMap:
+      name: <CLUSTER_ID>-cluster-values
+      namespace: org-<ORG>
+    secret:
+      name: ""
+      namespace: ""
+  kubeConfig:
+    context:
+      name: <CLUSTER_ID>-kubeconfig
+    inCluster: false
+    secret:
+      name: <CLUSTER_ID>-kubeconfig
+      namespace: org-<ORG>
+  name: envoy-extension-server
+  namespace: envoy-gateway-system
+  version: 0.0.0-8ff9546f7330bd53b840040515be697f658f651c
