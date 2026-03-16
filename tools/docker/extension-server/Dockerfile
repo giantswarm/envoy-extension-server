@@ -1,4 +1,4 @@
-FROM gcr.io/distroless/static:nonroot@sha256:e9ac71e2b8e279a8372741b7a0293afda17650d926900233ec3a7b2b7c22a246
+FROM gcr.io/distroless/static:nonroot@sha256:e3f945647ffb95b5839c07038d64f9811adf17308b9121d8a2b87b6a22a80a39
 COPY ./envoy-extension-server-linux-amd64 /usr/local/bin/envoy-extension-server
 
 USER 65532:65532
